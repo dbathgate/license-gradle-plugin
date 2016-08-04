@@ -16,15 +16,15 @@
 
 package nl.javadude.gradle.plugins.license.maven;
 
-import com.google.code.mojo.license.document.Document;
-import com.google.code.mojo.license.header.Header;
-
 import java.io.File;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+
+import com.mycila.maven.plugin.license.document.Document;
+import com.mycila.maven.plugin.license.header.Header;
 
 /**
  * Reformat files with a missing header to add it
@@ -77,6 +77,11 @@ public final class LicenseFormatMojo implements CallbackWithFailure {
 
     public void onExistingHeader(Document document, Header header) {
         logger.info("Header OK in: {}", DocumentFactory.getRelativeFile(basedir, document));
+    }
+
+    @Override
+    public void onUnknownFile(Document document, Header header) {
+        logger.error("Unknown file: {}", DocumentFactory.getRelativeFile(basedir, document));
     }
 
     @Override

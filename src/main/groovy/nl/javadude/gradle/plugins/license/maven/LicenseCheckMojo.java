@@ -16,15 +16,15 @@
 
 package nl.javadude.gradle.plugins.license.maven;
 
-import com.google.code.mojo.license.document.Document;
-import com.google.code.mojo.license.header.Header;
-
 import java.io.File;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+
+import com.mycila.maven.plugin.license.document.Document;
+import com.mycila.maven.plugin.license.header.Header;
 
 /**
  * Check if the source files of the project have a valid license header
@@ -61,6 +61,11 @@ public final class LicenseCheckMojo implements CallbackWithFailure {
     @Override
     public void onExistingHeader(Document document, Header header) {
         logger.info("Header OK in: {}", DocumentFactory.getRelativeFile(basedir, document));
+    }
+
+    @Override
+    public void onUnknownFile(Document document, Header header) {
+        logger.error("Unknown file: {}", DocumentFactory.getRelativeFile(basedir, document));
     }
 
     @Override

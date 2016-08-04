@@ -1,6 +1,6 @@
 package nl.javadude.gradle.plugins.license.maven;
 
-import static com.google.code.mojo.license.document.DocumentType.defaultMapping;
+import static com.mycila.maven.plugin.license.document.DocumentType.defaultMapping;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -18,14 +18,15 @@ import org.gradle.api.file.FileCollection;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 
-import com.google.code.mojo.license.Callback;
-import com.google.code.mojo.license.HeaderSection;
-import com.google.code.mojo.license.document.Document;
-import com.google.code.mojo.license.document.DocumentType;
-import com.google.code.mojo.license.header.AdditionalHeaderDefinition;
-import com.google.code.mojo.license.header.Header;
-import com.google.code.mojo.license.header.HeaderDefinition;
-import com.google.code.mojo.license.header.HeaderType;
+import com.mycila.maven.plugin.license.Callback;
+import com.mycila.maven.plugin.license.HeaderSection;
+import com.mycila.maven.plugin.license.document.Document;
+import com.mycila.maven.plugin.license.document.DocumentPropertiesLoader;
+import com.mycila.maven.plugin.license.document.DocumentType;
+import com.mycila.maven.plugin.license.header.AdditionalHeaderDefinition;
+import com.mycila.maven.plugin.license.header.Header;
+import com.mycila.maven.plugin.license.header.HeaderDefinition;
+import com.mycila.maven.plugin.license.header.HeaderType;
 
 import com.mycila.xmltool.XMLDoc;
 
@@ -69,20 +70,36 @@ public class AbstractLicenseMojo {
     }
 
     protected void execute(final Callback callback) throws MalformedURLException {
-        Map<String, String> props = mergeProperties();
+        final Map<String, String> props = mergeProperties();
 
-        final Header h = new Header(header.toURL(), props, headerSections);
+        final Header h = new Header(header.toURL(), encoding, headerSections);
         logger.debug("Header {}:\n{}", h.getLocation(), h);
 
         if (this.validHeaders == null)
             this.validHeaders = new ArrayList<File>();
         final List<Header> validHeaders = new ArrayList<Header>(this.validHeaders.size());
         for (File validHeader : this.validHeaders) {
-            validHeaders.add(new Header(validHeader.toURI().toURL(), props, headerSections));
+            validHeaders.add(new Header(validHeader.toURI().toURL(), encoding, headerSections));
         }
 
+        final DocumentPropertiesLoader documentPropertiesLoader = new DocumentPropertiesLoader() {
+
+            @Override
+            public Properties load(Document d) {
+                Properties properties = new Properties();
+
+                for (String key : props.keySet()) {
+                    properties.put(key, String.valueOf(props.get(key)));
+                }
+
+                properties.put("file.name", d.getFile().getName());
+
+                return properties;
+            }
+        };
+
         final DocumentFactory documentFactory = new DocumentFactory(rootDir, buildMapping(), buildHeaderDefinitions(),
-                        encoding, keywords);
+                        encoding, keywords, documentPropertiesLoader);
 
         int nThreads = (int) (Runtime.getRuntime().availableProcessors() * concurrencyFactor);
         ExecutorService executorService = Executors.newFixedThreadPool(nThreads);
