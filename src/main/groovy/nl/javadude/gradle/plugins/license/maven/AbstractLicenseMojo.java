@@ -51,10 +51,11 @@ public class AbstractLicenseMojo {
     boolean strictCheck;
     URI header;
     FileCollection source;
+    DocumentPropertiesLoader documentPropertiesLoader;
 
     public AbstractLicenseMojo(Collection<File> validHeaders, File rootDir, Map<String, String> initial,
                     boolean dryRun, boolean skipExistingHeaders, boolean useDefaultMappings, boolean strictCheck,
-                    URI header, FileCollection source, Map<String, String> mapping, String encoding) {
+                    URI header, FileCollection source, Map<String, String> mapping, String encoding, DocumentPropertiesLoader documentPropertiesLoader) {
         super();
         this.validHeaders = validHeaders;
         this.rootDir = rootDir;
@@ -67,10 +68,10 @@ public class AbstractLicenseMojo {
         this.source = source;
         this.mapping = mapping;
         this.encoding = encoding;
+        this.documentPropertiesLoader = documentPropertiesLoader;
     }
 
     protected void execute(final Callback callback) throws MalformedURLException {
-        final Map<String, String> props = mergeProperties();
 
         final Header h = new Header(header.toURL(), encoding, headerSections);
         logger.debug("Header {}:\n{}", h.getLocation(), h);
@@ -81,22 +82,6 @@ public class AbstractLicenseMojo {
         for (File validHeader : this.validHeaders) {
             validHeaders.add(new Header(validHeader.toURI().toURL(), encoding, headerSections));
         }
-
-        final DocumentPropertiesLoader documentPropertiesLoader = new DocumentPropertiesLoader() {
-
-            @Override
-            public Properties load(Document d) {
-                Properties properties = new Properties();
-
-                for (String key : props.keySet()) {
-                    properties.put(key, String.valueOf(props.get(key)));
-                }
-
-                properties.put("file.name", d.getFile().getName());
-
-                return properties;
-            }
-        };
 
         final DocumentFactory documentFactory = new DocumentFactory(rootDir, buildMapping(), buildHeaderDefinitions(),
                         encoding, keywords, documentPropertiesLoader);
@@ -156,27 +141,6 @@ public class AbstractLicenseMojo {
             executorService.shutdownNow();
         }
 
-    }
-
-    // //////////////////////////////////////////////////////////////////////////
-    // Pulling from maven-license-plugin. Copying here because methods are protected
-    // or rely on Maven classes
-
-    /**
-     * From com/google/code/mojo/license/AbstractLicenseMojo.java
-     */
-    protected final Map<String, String> mergeProperties() {
-        // first put syste environment
-        Map<String, String> props = new HashMap<String, String>(System.getenv());
-
-        // Override with extension
-        props.putAll(initial);
-
-        // then we override by java system properties (command-line -D...)
-        for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
-            props.put(entry.getKey().toString(), entry.getValue().toString());
-        }
-        return props;
     }
 
     private Map<String, String> buildMapping() {

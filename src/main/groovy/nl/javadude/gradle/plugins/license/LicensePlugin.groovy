@@ -216,6 +216,7 @@ class LicensePlugin implements Plugin<Project> {
             excludes = { extension.excludePatterns }
             includes = { extension.includePatterns }
             encoding = { extension.encoding }
+            getPerDocumentProperties = { extension.getPerDocumentProperties }
         }
     }
 

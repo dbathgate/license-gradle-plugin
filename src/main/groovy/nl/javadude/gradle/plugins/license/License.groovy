@@ -21,9 +21,18 @@ import nl.javadude.gradle.plugins.license.maven.AbstractLicenseMojo
 import nl.javadude.gradle.plugins.license.maven.CallbackWithFailure
 import nl.javadude.gradle.plugins.license.maven.LicenseCheckMojo
 import nl.javadude.gradle.plugins.license.maven.LicenseFormatMojo
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+
 import org.gradle.api.GradleException
 import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.*
+
+import com.mycila.maven.plugin.license.document.Document
+import com.mycila.maven.plugin.license.document.DocumentPropertiesLoader
+
 
 /**
  * Task to back License. Using convention of naming Task types with just their name, which makes calls
@@ -90,6 +99,8 @@ public class License extends SourceTask implements VerificationTask {
     Map<String, String> inheritedProperties;
     Map<String, String> inheritedMappings;
 
+    Closure getPerDocumentProperties;
+
     @TaskAction
     protected void process() {
         // Plain weird, but this ensures that the lazy closure from the extension is properly wired into the excludes field of the SourceTask.
@@ -108,11 +119,34 @@ public class License extends SourceTask implements VerificationTask {
         }
 
         Map<String, String> initial = combineVariables();
+        Map<String, String> mergedProperties = mergeProperties(initial);
         Map<String, String> combinedMappings = combinedMappings();
 
         URI uri = getURI()
 
-        new AbstractLicenseMojo(validHeaders, getProject().rootDir, initial, isDryRun(), isSkipExistingHeaders(), isUseDefaultMappings(), isStrictCheck(), uri, source, combinedMappings, getEncoding())
+        final DocumentPropertiesLoader documentPropertiesLoader = new DocumentPropertiesLoader() {
+
+            @Override
+            public Properties load(final Document document) {
+                Properties properties = new Properties();
+
+                for (String key : mergedProperties.keySet()) {
+                    properties.put(key, String.valueOf(mergedProperties.get(key)));
+                }
+
+                if (getPerDocumentProperties != null) {
+                    Properties perDocumentProperties = getPerDocumentProperties(document, properties);
+
+                    for (String key : perDocumentProperties.keySet()) {
+                        properties.put(key, String.valueOf(perDocumentProperties.get(key)));
+                    }
+                }
+
+                return properties;
+            }
+        };
+
+        new AbstractLicenseMojo(validHeaders, getProject().rootDir, initial, isDryRun(), isSkipExistingHeaders(), isUseDefaultMappings(), isStrictCheck(), uri, source, combinedMappings, getEncoding(), documentPropertiesLoader)
             .execute(callback);
 
         altered = callback.getAffected()
@@ -162,6 +196,26 @@ public class License extends SourceTask implements VerificationTask {
         }
         combinedMappings.putAll(internalMappings)
         return combinedMappings
+    }
+
+    // //////////////////////////////////////////////////////////////////////////
+    // Pulling from maven-license-plugin. Copying here because methods are protected
+    // or rely on Maven classes
+    /**
+     * From com/google/code/mojo/license/AbstractLicenseMojo.java
+     */
+     Map<String, String> mergeProperties(Map<String, String> initial) {
+        // first put syste environment
+        Map<String, String> props = new HashMap<String, String>(System.getenv());
+
+        // Override with extension
+        props.putAll(initial);
+
+        // then we override by java system properties (command-line -D...)
+        for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
+            props.put(entry.getKey().toString(), entry.getValue().toString());
+        }
+        return props;
     }
 
     Map<String, String> internalMappings = new HashMap<String, String>();

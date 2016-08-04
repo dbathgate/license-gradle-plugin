@@ -73,6 +73,8 @@ class LicenseExtension {
 
     boolean strictCheck
 
+    Closure getPerDocumentProperties;
+
     /**
      * The encoding used for opening files. It is the system encoding by default
      */
@@ -111,4 +113,16 @@ class LicenseExtension {
       includePatterns.addAll(patterns)
     }
 
+    public void perDocumentProperties(Closure closure) {
+        this.getPerDocumentProperties = { document, properties ->
+
+            def delegate = [document: document, ext: properties];
+
+            closure.delegate = delegate;
+            closure.resolveStrategy = Closure.DELEGATE_FIRST;
+            closure();
+
+            return delegate.ext;
+        };
+    }
 }
